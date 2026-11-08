@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0e14">
+<title>重力传感器侦察 · gravity-sokoban</title>
+<style>
+:root{--bg:#0b0e14;--card:#151a24;--line:#28313f;--ink:#e9eefb;--dim:#94a3b8;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;--acc:#60a5fa}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{padding:14px 14px calc(14px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+h1{font-size:17px;margin:2px 0 10px;font-weight:650}
+h1 small{color:var(--dim);font-weight:400;font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
+.row:first-child{margin-top:0}
+.k{color:var(--dim);font-size:13px}
+.v{font-variant-numeric:tabular-nums;font-size:14px}
+.big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin:2px 0}
+.big b{display:block;font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.big span{font-size:12px;color:var(--dim)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--dim)}
+.pill.ok{color:var(--ok);border-color:#1f4d3b;background:#12251d}
+.pill.bad{color:var(--bad);border-color:#4d1f1f;background:#251212}
+.pill.warn{color:var(--warn);border-color:#4d3d1f;background:#251f12}
+button{width:100%;padding:15px;font-size:17px;font-weight:650;border-radius:14px;border:0;background:var(--acc);color:#07101f;margin:0 0 10px}
+button.ghost{background:#1d2531;color:var(--ink);border:1px solid var(--line);font-weight:600;font-size:15px;padding:12px;margin:0}
+#log{font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all;max-height:210px;overflow:auto;margin:0;color:#cfe0ff}
+.small{font-size:12px;color:var(--dim);margin:6px 0 0}
+input[type=range]{width:100%;accent-color:var(--acc);margin:8px 0 0}
+textarea{width:100%;height:110px;background:#0e131c;color:#cfe0ff;border:1px solid var(--line);border-radius:10px;font:12px ui-monospace,monospace;padding:8px;margin-top:8px;resize:none}
+.arrow{font-size:44px;text-align:center;line-height:1;margin:2px 0 6px;height:48px;color:var(--acc)}
+.two{display:flex;gap:8px}
+.two>*{flex:1}
+</style>
+</head>
+<body>
+<h1>重力传感器侦察 <small>gravity-sokoban · spike</small></h1>
+
+<div class="card">
+  <div class="row"><span class="k">安全上下文（HTTPS / localhost）</span><span class="pill" id="envSecure">…</span></div>
+  <div class="row"><span class="k">DeviceOrientationEvent</span><span class="pill" id="envApi">…</span></div>
+  <div class="row"><span class="k">iOS 授权 API requestPermission</span><span class="pill" id="envPerm">…</span></div>
+  <div class="row"><span class="k">权限状态</span><span class="pill" id="envState">idle</span></div>
+  <p class="small" id="envNote">首次需点下方按钮授权（iOS 必须用户手势）；页面须为 HTTPS 或 localhost。</p>
+</div>
+
+<button id="btnEnable">启用重力传感器</button>
+
+<div class="card">
+  <div class="big">
+    <div><b id="vBeta">–</b><span>beta 前后</span></div>
+    <div><b id="vGamma">–</b><span>gamma 左右</span></div>
+    <div><b id="vHz">0</b><span>事件/秒</span></div>
+  </div>
+  <div class="arrow" id="vArrow">·</div>
+  <div class="row"><span class="k">相对基准幅度</span><span class="v" id="vMag">–</span></div>
+  <div class="row"><span class="k">触发次数 · 状态</span><span class="v" id="vFire">0 · armed</span></div>
+  <div class="row"><span class="k">rAF 帧率</span><span class="v" id="vFps">–</span></div>
+</div>
+
+<div class="card">
+  <div class="row"><span class="k">触发阈值 <b id="vTh">20.5°</b></span><span class="pill" id="vArmed">armed</span></div>
+  <input id="rng" type="range" min="6" max="40" step="0.5" value="20.5">
+  <div class="row" style="margin-top:10px"><span class="k">方向轴比 ≥ <b id="vRatioTh">2.0</b></span><span class="pill" id="vRatioState">ok</span></div>
+  <input id="rngRatio" type="range" min="1.2" max="3" step="0.1" value="2">
+  <p class="small">触发：≥20.5°（≈0.35g）且方向轴比 ≥2.0；回正到 ≤5.7°（≈0.10g）并保持 80ms 才重新武装。没有额外时间冷却。</p>
+  <div class="two" style="margin-top:10px">
+    <button class="ghost" id="btnCal">设为基准</button>
+    <button class="ghost" id="btnCopy">复制诊断</button>
+  </div>
+  <textarea id="diag" readonly placeholder="点“复制诊断”生成 JSON"></textarea>
+</div>
+
+<div class="card">
+  <div class="k" style="margin-bottom:6px">触发日志</div>
+  <pre id="log">（空）</pre>
+</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+
+const S = {
+  perm: "idle", hasApi: false, hasPermFn: false,
+  events: 0, hz: 0, wcount: 0, wstart: 0,
+  beta: 0, gamma: 0, alpha: 0, has: false,
+  base: { b: 0, g: 0 }, calibrated: false,
+  th: 20.5, releaseDeg: 5.7, rearmMs: 80, lowSince: 0, axisRatio: 2.0, ratio: Infinity,
+  armed: true, lastFire: 0, fires: 0, lastDir: "",
+  log: [], fps: 0, frames: 0, fpsStart: 0, sim: false
+};
+
+const ARROW = { up: "↑", down: "↓", left: "←", right: "→" };
+
+// 真机方向符号校准：手机上手试一次，反了就把对应轴改成 -1
+const FLIP = { x: 1, y: 1 };
+
+function push(line) {
+  S.log.push(line);
+  if (S.log.length > 40) S.log.shift();
+  $("#log").textContent = S.log.join("\n");
+}
+
+function setPill(el, text, cls) {
+  el.textContent = text;
+  el.className = "pill" + (cls ? " " + cls : "");
+}
+
+function paintEnv() {
+  setPill($("#envSecure"), isSecureContext ? "是" : "否（传感器会被禁用）", isSecureContext ? "ok" : "bad");
+  setPill($("#envApi"), S.hasApi ? "有" : "无", S.hasApi ? "ok" : "bad");
+  setPill($("#envPerm"), S.hasPermFn ? "有（iOS 13+）" : "无（安卓/桌面直连）", S.hasPermFn ? "warn" : "ok");
+  const map = {
+    idle: ["idle", ""], asking: ["请求中…", "warn"], granted: ["已授权（iOS）", "ok"],
+    denied: ["被拒绝", "bad"], error: ["出错", "bad"], unsupported: ["浏览器不支持", "bad"],
+    listening: ["监听中", "ok"], "granted(no-fn)": ["监听中（无授权步骤）", "ok"]
+  };
+  const m = map[S.perm] || [S.perm, ""];
+  setPill($("#envState"), m[0], m[1]);
+}
+
+function magNow() { return Math.hypot(S.beta - S.base.b, S.gamma - S.base.g); }
+
+function tilt(now) {
+  const db = (S.beta - S.base.b) * FLIP.y, dg = (S.gamma - S.base.g) * FLIP.x;
+  const mag = Math.hypot(db, dg);
+  const adb = Math.abs(db), adg = Math.abs(dg);
+  S.ratio = adb >= adg ? (adg ? adb / adg : Infinity) : (adb ? adg / adb : Infinity);
+  const aligned = S.ratio >= S.axisRatio;
+  if (S.armed) {
+    // 只看状态机：幅度达阈值 + 方向够正（轴比），不再叠加时间冷却
+    if (mag >= S.th && aligned) {
+      const dir = Math.abs(db) >= Math.abs(dg) ? (db > 0 ? "down" : "up") : (dg > 0 ? "right" : "left");
+      S.armed = false; S.fires++; S.lastFire = now; S.lastDir = dir; S.lowSince = 0;
+      const t = new Date().toISOString().slice(11, 23);
+      push(t + "  FIRE #" + S.fires + "  " + ARROW[dir] + " " + dir +
+           "  mag=" + mag.toFixed(1) + "°  (β" + (db >= 0 ? "+" : "") + db.toFixed(1) +
+           " γ" + (dg >= 0 ? "+" : "") + dg.toFixed(1) + ")" + (S.sim ? "  [sim]" : ""));
+    }
+  } else if (mag <= S.releaseDeg) {
+    // 设计稿口径：回到 ≤0.10g（≈5.7°）并持续 80ms 才重新武装
+    if (!S.lowSince) S.lowSince = now;
+    if (now - S.lowSince >= S.rearmMs) {
+      const held = Math.round(now - S.lowSince);
+      S.armed = true; S.lowSince = 0;
+      push("         re-arm（回正保持 " + held + "ms）");
+    }
+  } else {
+    S.lowSince = 0;
+  }
+  return mag;
+}
+
+function onOrient(e) {
+  if (e.beta === null && e.gamma === null) return;
+  if (S.perm === "idle" || S.perm === "granted") { S.perm = "listening"; paintEnv(); }
+  S.events++; S.has = true;
+  S.beta = e.beta || 0; S.gamma = e.gamma || 0; S.alpha = e.alpha || 0;
+  const t = performance.now();
+  if (!S.wstart) { S.wstart = t; S.wcount = 0; }
+  S.wcount++;
+  if (t - S.wstart >= 500) { S.hz = Math.round(S.wcount * 1000 / (t - S.wstart)); S.wcount = 0; S.wstart = t; }
+  const mag = tilt(t);
+  paintLive(mag);
+}
+
+function paintLive(mag) {
+  $("#vBeta").textContent = S.has ? S.beta.toFixed(1) : "–";
+  $("#vGamma").textContent = S.has ? S.gamma.toFixed(1) : "–";
+  $("#vHz").textContent = S.hz;
+  $("#vFps").textContent = S.fps ? S.fps.toFixed(0) : "–";
+  $("#vMag").textContent = mag === undefined ? magNow().toFixed(1) + "°" : mag.toFixed(1) + "°";
+  $("#vArrow").textContent = ARROW[S.lastDir] || "·";
+  $("#vFire").textContent = S.fires + " · " + (S.armed ? "armed" : "waiting");
+  $("#vArmed").textContent = S.armed ? "armed" : "waiting";
+  $("#vArmed").className = "pill " + (S.armed ? "ok" : "warn");
+  const aligned = S.ratio >= S.axisRatio;
+  $("#vRatioState").textContent = S.has ? (aligned ? "ok" : "偏斜") : "–";
+  $("#vRatioState").className = "pill " + (S.has ? (aligned ? "ok" : "warn") : "");
+}
+
+function raf(ts) {
+  S.frames++;
+  if (!S.fpsStart) { S.fpsStart = ts; S.frames = 0; }
+  else if (ts - S.fpsStart >= 1000) {
+    S.fps = S.frames * 1000 / (ts - S.fpsStart);
+    S.frames = 0; S.fpsStart = ts;
+    $("#vFps").textContent = S.fps.toFixed(0);
+  }
+  requestAnimationFrame(raf);
+}
+
+async function enable() {
+  const btn = $("#btnEnable");
+  if (!S.hasApi) { S.perm = "unsupported"; paintEnv(); return; }
+  btn.disabled = true;
+  try {
+    if (S.hasPermFn) {
+      S.perm = "asking"; paintEnv();
+      const r = await DeviceOrientationEvent.requestPermission();
+      S.perm = r;
+      push("iOS requestPermission → " + r);
+      if (r !== "granted") { paintEnv(); btn.disabled = false; return; }
+    } else {
+      S.perm = "granted(no-fn)";
+    }
+    window.addEventListener("deviceorientation", onOrient, true);
+    S.perm = S.hasPermFn ? "granted" : "listening";
+    push("开始监听 deviceorientation");
+  } catch (err) {
+    S.perm = "error";
+    push("requestPermission 抛错：" + (err && err.message ? err.message : String(err)));
+  }
+  paintEnv();
+  btn.disabled = false;
+}
+
+function calibrate() {
+  S.base = { b: S.beta, g: S.gamma };
+  S.calibrated = true;
+  S.armed = true; S.fires = 0; S.lastDir = "";
+  push("基准已记录  β=" + S.beta.toFixed(1) + " γ=" + S.gamma.toFixed(1) + "（阈值 " + S.th + "°）");
+  paintLive(0);
+}
+
+function snapshot() {
+  return {
+    secure: isSecureContext,
+    api: S.hasApi,
+    permFn: S.hasPermFn,
+    perm: S.perm,
+    ua: navigator.userAgent,
+    events: S.events,
+    hz: S.hz,
+    beta: +S.beta.toFixed(2),
+    gamma: +S.gamma.toFixed(2),
+    alpha: +S.alpha.toFixed(2),
+    base: { beta: +S.base.b.toFixed(2), gamma: +S.base.g.toFixed(2) },
+    calibrated: S.calibrated,
+    threshold: S.th,
+    releaseDeg: S.releaseDeg,
+    rearmMs: S.rearmMs,
+    axisRatio: S.axisRatio,
+    ratio: S.ratio === Infinity ? null : +S.ratio.toFixed(2),
+    mag: +magNow().toFixed(2),
+    armed: S.armed,
+    fires: S.fires,
+    lastDir: S.lastDir,
+    fps: +S.fps.toFixed(1),
+    flip: { ...FLIP },
+    log: S.log.slice(-25),
+    sim: S.sim
+  };
+}
+
+// 自动化测试钩子：绕过事件构造限制直接喂值（页面逻辑与真实事件同一路径）
+window.__probe = {
+  snapshot: snapshot,
+  calibrate: calibrate,
+  simulate(beta, gamma, alpha) { S.sim = true; onOrient({ beta: beta, gamma: gamma, alpha: alpha || 0 }); return snapshot(); },
+  setThreshold(v) { S.th = v; $("#vTh").textContent = v + "°"; $("#rng").value = v; },
+  reset() { S.fires = 0; S.armed = true; S.lastDir = ""; S.log = []; $("#log").textContent = "（空）"; }
+};
+
+function boot() {
+  S.hasApi = "DeviceOrientationEvent" in window;
+  S.hasPermFn = S.hasApi && typeof window.DeviceOrientationEvent.requestPermission === "function";
+  if (S.hasApi) {
+    // 始终挂监听：安卓 Chrome 不需要授权，进来就有数据；iOS 没有授权则不发事件
+    window.addEventListener("deviceorientation", onOrient, true);
+    S.perm = S.hasPermFn ? "idle" : "listening";
+  }
+  paintEnv();
+  paintLive();
+  $("#btnEnable").addEventListener("click", enable);
+  $("#btnCal").addEventListener("click", calibrate);
+  $("#vTh").textContent = S.th + "°";
+  $("#rng").value = S.th;
+  $("#rng").addEventListener("input", (e) => { S.th = +e.target.value; $("#vTh").textContent = S.th + "°"; });
+  $("#vRatioTh").textContent = S.axisRatio.toFixed(1);
+  $("#rngRatio").addEventListener("input", (e) => {
+    S.axisRatio = +e.target.value;
+    $("#vRatioTh").textContent = S.axisRatio.toFixed(1);
+  });
+  $("#btnCopy").addEventListener("click", () => {
+    const txt = JSON.stringify(snapshot(), null, 2);
+    $("#diag").value = txt;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(() => {});
+  });
+  requestAnimationFrame(raf);
+  push("页面就绪  secure=" + isSecureContext + "  api=" + S.hasApi + "  permFn=" + S.hasPermFn);
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+</script>
+</body>
+</html>

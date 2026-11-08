@@ -1,0 +1,6 @@
+{
+  "name": "gravity-sokoban",
+  "private": true,
+  "type": "module",
+  "description": "零构建单页游戏：仅用于让 Node 以 ES module 方式跑内核自测，浏览器不需要它。"
+}

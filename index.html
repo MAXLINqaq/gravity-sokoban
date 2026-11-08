@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="data:,">
+<title>重力推箱子</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="btnLevels" class="icon" aria-label="选关">☰</button>
+    <div class="title"><span id="lvlId">T1</span><span id="lvlName"></span></div>
+    <button id="btnHelp" class="icon" aria-label="如何玩">?</button>
+  </header>
+
+  <div id="hud">
+    <span>步 <b id="moves">0</b></span>
+    <span id="best"></span>
+  </div>
+
+  <div id="notice"></div>
+
+  <div id="hint"></div>
+
+  <div id="boardWrap"><canvas id="board"></canvas></div>
+
+  <div id="banner"><span id="bannerText"></span><button id="btnNext">下一关</button></div>
+
+  <div id="pad">
+    <button data-dir="up" aria-label="向上">↑</button>
+    <button data-dir="left" aria-label="向左">←</button>
+    <button data-dir="down" aria-label="向下">↓</button>
+    <button data-dir="right" aria-label="向右">→</button>
+  </div>
+
+  <footer>
+    <button id="btnUndo">撤销</button>
+    <button id="btnRestart">重开</button>
+    <button id="btnLevels2">选关</button>
+  </footer>
+</div>
+
+<div id="levelSheet" class="sheet">
+  <div class="panel">
+    <h2>选关</h2>
+    <div id="levelGrid"></div>
+    <button data-close>关闭</button>
+  </div>
+</div>
+
+<div id="calibSheet" class="sheet">
+  <div class="panel">
+    <h2>校准重力</h2>
+    <p>把手机<b>平放</b>（屏幕朝上），点下面的按钮。之后倾斜手机来让箱子滑动。</p>
+    <p id="calibHint" class="calibHint"></p>
+    <button id="btnDoCalib">校准</button>
+    <button data-close>稍后</button>
+  </div>
+</div>
+
+<div id="helpSheet" class="sheet">
+  <div class="panel">
+    <h2>怎么玩</h2>
+    <p>倾斜手机一次，所有箱子同时沿重力方向滑到撞上东西为止。你只有一个不受重力、可以随手拖动的挡块。</p>
+    <h3>规则</h3>
+    <ul>
+      <li>箱子撞墙停、撞箱停、撞挡块停；箱子不推箱子。</li>
+      <li>所有箱子同时停在目标格才算赢；目标不锁定，先放好的会被下一步带走。</li>
+      <li>一次倾斜是一整步，必须回正才能再倾。</li>
+      <li>挡块可拖到任意空格，不模拟路径、不计步；撤销会连带退回挡块。</li>
+    </ul>
+    <h3>操作</h3>
+    <ul>
+      <li>手机：倾斜，或点下方方向键兜底；按住挡块拖到目标格。</li>
+      <li>桌面：方向键移动，Z 撤销，R 重开。</li>
+    </ul>
+    <h3>重力输入</h3>
+    <p id="sensorStatus">未初始化</p>
+    <div class="two">
+      <button id="btnCalib">重新校准</button>
+      <button id="btnMode">改用方向键</button>
+    </div>
+    <button id="btnRetry" hidden>重试传感器授权</button>
+    <button data-close>知道了</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
